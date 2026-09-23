@@ -34,7 +34,7 @@ export async function registercontroller(req, res) {
             html: `<p>${user.username}</p>
             <p>Thank you for registering at <strong>Perplexity</strong>. We are excited to have you on board!</p>
             <p>Please click on the link below to verify your email address:</p>
-            <a href="http://localhost:3000/api/auth/verify?token=${emailverificationtoken}"> Verify</a>
+            <a href="https://rag-pipe-86ej.onrender.com/api/auth/verify?token=${emailverificationtoken}"> Verify</a>
             <p>If you did not create an account, no further action is required.</p>
             <p>Best regards,<br>Perplexity Team</p>`
         })

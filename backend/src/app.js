@@ -17,7 +17,8 @@ app.use(express.json())
 app.use(express.static(path.join(__dirname, '..', 'dist')))
 
 const allowedOrigins = [
-    "http://localhost:5173"
+    "http://localhost:5173",
+    "https://rag-pipe-86ej.onrender.com"
 ];
 app.use(cors({
     origin: allowedOrigins,
