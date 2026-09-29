@@ -31,23 +31,91 @@ const mistralmodel = new ChatMistralAI({
 })
 
 const sendemail = tool(
-  sendEmail, {
-  name: "sendEmail",
-  description: "use these tool to send the email to someone .if anyone write send email immediately. write content according to the subject and send someone immediately.  ",
-  schema: z.object({
-    to: z.string().email().describe("recipient's email address"),
-    subject: z.string().describe("subject of the email"),
-    html: z.string().describe("HTML content of the email"),
-    text: z.string().describe("plain text content of the email")
-  })
-}
-)
+  sendEmail,
+  {
+    name: "sendEmail",
 
+    description: `
+Send an email immediately whenever the user explicitly asks to send an email.
+
+The user's request is authorization to send the email. Never ask for confirmation before sending.
+
+The user can provide any combination of recipient, subject, content, topic, or purpose.
+
+Rules:
+1. If the user explicitly asks to send an email, call this tool immediately.
+2. If the user provides only the recipient and a topic/purpose, generate a suitable subject and email content yourself, then send it.
+3. If the user provides a recipient and subject but no body, generate the body yourself based on the subject, then send it.
+4. If the user provides recipient, subject, and body, use the provided information and send it.
+5. If the user provides a recipient and instructions about what to say, generate a suitable subject and complete email content yourself.
+6. Handle any type of email request: meetings, birthday wishes, job applications, follow-ups, leave requests, reminders, invitations, professional emails, personal emails, announcements, etc.
+7. Do not ask "Should I send it?", "Do you want me to send it?", or any other confirmation question.
+8. Do not merely draft the email when the user explicitly asks to send it. Actually call this tool.
+9. Only ask a clarification if the recipient email address is genuinely missing or ambiguous and cannot be determined.
+10. Generate both HTML and plain-text versions of the email when they are not provided by the user.
+
+Examples:
+
+User: "Send an email to rahul@example.com about tomorrow's meeting"
+Action: Generate subject and email body, then call this tool immediately.
+
+User: "Send email to rahul@example.com, subject is Meeting Tomorrow"
+Action: Generate the email body, then call this tool immediately.
+
+User: "Send an email to rahul@example.com saying the meeting is at 10 AM"
+Action: Generate a suitable subject and email body, then call this tool immediately.
+
+User: "Send birthday wishes to rahul@example.com"
+Action: Generate subject and birthday message, then call this tool immediately.
+
+User: "Send this email to rahul@example.com: The meeting has been moved to 3 PM"
+Action: Generate a suitable subject, preserve the intended message, generate HTML/plain text, then call this tool immediately.
+`,
+
+    schema: z.object({
+      to: z.string()
+        .email()
+        .describe("The recipient's email address. Required to send the email."),
+
+      subject: z.string()
+        .describe("Email subject. Generate an appropriate subject from the user's request if the user did not provide one."),
+
+      html: z.string()
+        .describe("HTML email body. Generate it yourself from the user's request when the user did not provide HTML."),
+
+      text: z.string()
+        .describe("Plain-text email body. Generate it yourself from the user's request when the user did not provide plain-text content.")
+    })
+  }
+);
 const searchInternetTool = tool(
-  searchinternet,
+  searchinternet, 
   {
     name: "searchInternet",
-    description: "Use this tool to get the latest information from the internet.",
+   description: `
+Use this tool to search the internet and retrieve the latest, current, or up-to-date information.
+
+Use this tool whenever the user's request requires information that may have changed recently or needs to be verified from the internet.
+
+Use it for:
+- Latest news and current events
+- Current prices, rates, or availability
+- Recent updates about companies, products, technologies, APIs, or software
+- Current weather or other real-time information
+- Recent sports scores, matches, schedules, or results
+- Current political or government information
+- Recent releases, announcements, or updates
+- Information published recently on the web
+- Any question where the user explicitly asks to search the internet, look something up, or get the latest information
+
+When the user asks for "latest", "current", "today", "recent", "now", "updated", "new", "what happened", or similar time-sensitive information, use this tool instead of relying only on your existing knowledge.
+
+Do not use this tool for simple general knowledge questions when current information is not required.
+
+If the user explicitly asks you to search the internet, always use this tool.
+
+Return information based on the search results and do not invent information that was not found.
+`,
     schema: z.object({
       query: z.string().describe("The search query to look up on the internet.")
     })
