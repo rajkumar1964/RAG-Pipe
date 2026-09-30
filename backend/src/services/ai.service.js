@@ -33,8 +33,7 @@ const mistralmodel = new ChatMistralAI({
 const searchInternetTool = tool(
   searchinternet,
   {
-    name: "searchInternet",
-
+    name:"searchInternet",
     description: `
 Search the internet for current, recent, latest, or real-world information.
 
@@ -305,7 +304,11 @@ function getAgentForChat(chatId) {
   const key = chatId?.toString() || "no-chat";
   if (agentCache.has(key)) return agentCache.get(key);
   const searchDocument = createSearchDocumentTool(chatId);
-  const tools = [ searchinternet, sendEmail, searchDocument];
+const tools = [
+  searchInternetTool,
+  sendemail,
+  searchDocument
+];
 
   console.log("🛠️ AGENT TOOLS:", tools.map(t => t.name));
 
