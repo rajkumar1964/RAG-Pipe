@@ -73,9 +73,6 @@ After calling the tool, answer using the returned search results. Never invent i
     })
   }
 );
-
-n
-
 // const sendemail = tool(
 //   sendEmail,
 //   {
