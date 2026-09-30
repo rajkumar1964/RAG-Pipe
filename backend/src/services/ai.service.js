@@ -5,7 +5,7 @@ import { ChatMistralAI } from "@langchain/mistralai"
 import { HumanMessage, SystemMessage, AIMessage, tool, createAgent } from "langchain"
 import * as z from "zod"
 import { searchinternet } from "../services/internet.service.js";
-import { sendEmail } from "./mail.service.js";
+import { sendEmail as sendEmailService } from "./mail.service.js";
 import { queryVectorStore } from "./vectorstore.services.js";
 import { ChatGroq } from "@langchain/groq"
 
@@ -162,9 +162,9 @@ After calling the tool, answer using the returned search results. Never invent i
 // );
 
 const sendEmail = tool(
-  sendEmail,
+  sendEmailService,
   {
-    name: "sendEmail",
+    name:"sendEmail",
 
     description: `
 Send an email immediately when the user explicitly asks to send one.
