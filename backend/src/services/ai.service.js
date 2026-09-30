@@ -11,7 +11,7 @@ import { ChatGroq } from "@langchain/groq"
 
 const Chatgroq = new ChatGroq({
   apiKey: process.env.CHATGROQ_API_KEY,
-  model: "qwen/qwen3.8-27b",
+  model: "qwen/qwen3.6-27b",
   temperature: 0,
   timeout: 60000,
 
