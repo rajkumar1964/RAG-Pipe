@@ -85,6 +85,8 @@ const embedder = new GoogleGeminiEmbeddingFunction({
   modelName: "gemini-embedding-001",
 });
 
+
+
 function collectionName(chatId) {
   return `chat_${chatId}`;
 }
