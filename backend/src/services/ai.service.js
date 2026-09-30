@@ -161,7 +161,7 @@ After calling the tool, answer using the returned search results. Never invent i
 //   }
 // );
 
-const sendemail = tool(
+const sendEmail = tool(
   sendEmail,
   {
     name: "sendEmail",
@@ -306,7 +306,7 @@ function getAgentForChat(chatId) {
   const searchDocument = createSearchDocumentTool(chatId);
 const tools = [
   searchInternetTool,
-  sendemail,
+  sendEmail,
   searchDocument
 ];
 
