@@ -70,7 +70,18 @@ Action: Generate subject and birthday message, then call this tool immediately.
 
 User: "Send this email to rahul@example.com: The meeting has been moved to 3 PM"
 Action: Generate a suitable subject, preserve the intended message, generate HTML/plain text, then call this tool immediately.
-`,
+
+   IMPORTANT EMAIL FORMATTING RULES:
+
+- The html field must contain valid HTML.
+- Never put literal \n or \n\n characters/sequences in the HTML output.
+- Never return HTML insidehtml ... code fences.
+- Never wrap the entire HTML content in quotes.
+- Use <p>, <br>, <strong>, <h1>, etc. for formatting.
+- The  text field must contain normal plain text with real line breaks.
+- Do not use escaped newline sequences such as \n as visible content. `
+
+,
 
     schema: z.object({
       to: z.string()
@@ -81,46 +92,115 @@ Action: Generate a suitable subject, preserve the intended message, generate HTM
         .describe("Email subject. Generate an appropriate subject from the user's request if the user did not provide one."),
 
       html: z.string()
-        .describe("HTML email body. Generate it yourself from the user's request when the user did not provide HTML."),
+        .describe(`
+Complete HTML email body.
+
+Generate REAL HTML, not escaped text.
+
+Use HTML tags such as:
+<p>...</p>
+<br>
+<strong>...</strong>
+<h2>...</h2>
+
+DO NOT output literal escape sequences such as \\n, \\n\\n, or \\r\\n inside the HTML.
+
+Do not wrap the HTML in quotation marks or markdown code fences.
+`),
 
       text: z.string()
-        .describe("Plain-text email body. Generate it yourself from the user's request when the user did not provide plain-text content.")
+        .describe(`
+Plain-text version of the email.
+
+Use actual line breaks, not the literal characters \\n or \\r\\n.
+Do not wrap the content in quotation marks.
+`)
     })
   }
 );
 const searchInternetTool = tool(
-  searchinternet, 
+  searchinternet,
   {
     name: "searchInternet",
-   description: `
-Use this tool to search the internet and retrieve the latest, current, or up-to-date information.
 
-Use this tool whenever the user's request requires information that may have changed recently or needs to be verified from the internet.
+    description: `
+Search the internet to get accurate, current, recent, or externally verifiable information.
 
-Use it for:
-- Latest news and current events
-- Current prices, rates, or availability
-- Recent updates about companies, products, technologies, APIs, or software
-- Current weather or other real-time information
-- Recent sports scores, matches, schedules, or results
-- Current political or government information
-- Recent releases, announcements, or updates
-- Information published recently on the web
-- Any question where the user explicitly asks to search the internet, look something up, or get the latest information
+IMPORTANT TOOL-USE RULE:
+If the user's question depends on information that may have changed over time, USE THIS TOOL before answering.
 
-When the user asks for "latest", "current", "today", "recent", "now", "updated", "new", "what happened", or similar time-sensitive information, use this tool instead of relying only on your existing knowledge.
+You MUST use this tool for questions involving:
+- today's news
+- latest news
+- current events
+- current date
+- current time
+- today's information
+- latest updates
+- recent events
+- current government or political information
+- current Prime Minister, President, Chief Minister, ministers, or other current officials
+- current company CEOs or executives
+- current prices, stock prices, exchange rates, product prices, or availability
+- latest technology or software updates
+- latest versions of libraries, frameworks, APIs, or models
+- recent releases or announcements
+- current sports scores, matches, rankings, or schedules
+- current weather
+- current laws, policies, rules, or regulations
+- anything containing words such as "today", "now", "currently", "latest", "recent", "this week", "this month", "2026", or similar time-sensitive wording
+- any question where answering from model memory could produce outdated or incorrect information
 
-Do not use this tool for simple general knowledge questions when current information is not required.
+Examples:
 
-If the user explicitly asks you to search the internet, always use this tool.
+User: "What is today's news?"
+→ MUST use searchInternet.
 
-Return information based on the search results and do not invent information that was not found.
+User: "Who is the current Prime Minister of India?"
+→ MUST use searchInternet.
+
+User: "What is the current time in India?"
+→ MUST use searchInternet or another reliable current-time source.
+
+User: "What is the latest React version?"
+→ MUST use searchInternet.
+
+User: "What happened today in the stock market?"
+→ MUST use searchInternet.
+
+User: "Latest updates about OpenAI?"
+→ MUST use searchInternet.
+
+User: "Who won today's match?"
+→ MUST use searchInternet.
+
+User: "Explain what React is."
+→ Do NOT use searchInternet unless the user explicitly asks for an online search or the question requires current information.
+
+User: "What is JWT?"
+→ Do NOT use searchInternet because this is stable general knowledge.
+
+The word "current" should be interpreted as information that must reflect the real world at the time of the user's request.
+
+Do not answer a time-sensitive question from your training knowledge when reliable web information can be retrieved.
+
+After searching:
+- Use the search results to formulate the answer.
+- Prefer recent and reliable sources.
+- Do not invent facts that are not supported by the search results.
+- If search results are conflicting or insufficient, clearly state the uncertainty.
+- Do not claim that information is current unless the search results support it.
+
+If the user explicitly asks you to search the internet, ALWAYS use this tool regardless of whether the information is normally considered stable.
 `,
+
     schema: z.object({
-      query: z.string().describe("The search query to look up on the internet.")
+      query: z.string().describe(
+        "A precise search query for retrieving the required information from the internet."
+      )
     })
   }
-)
+);
 
 // ye mere wala hia 
 // function createSearchDocumentTool(chatId) {
@@ -206,10 +286,10 @@ const agentCache = new Map();
 function getAgentForChat(chatId) {
   const key = chatId?.toString() || "no-chat";
   if (agentCache.has(key)) return agentCache.get(key);
-   const searchDocument = createSearchDocumentTool(chatId);
+  const searchDocument = createSearchDocumentTool(chatId);
   const tools = [searchInternetTool, sendemail, searchDocument];
 
-   console.log("🛠️ AGENT TOOLS:", tools.map(t => t.name));
+  console.log("🛠️ AGENT TOOLS:", tools.map(t => t.name));
 
   // if (chatId) tools.push(createSearchDocumentTool(chatId));
 
@@ -287,7 +367,7 @@ Never guess current information. Always use the tool first and answer using the 
 //   ]) 
 //   return response.content 
 // }
- 
+
 export async function genratechattitle(message) {
   const response = await Chatgroq.invoke([
     new SystemMessage(`
