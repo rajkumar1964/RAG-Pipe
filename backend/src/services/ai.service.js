@@ -12,7 +12,7 @@ import { ChatGroq } from "@langchain/groq"
 const Chatgroq = new ChatGroq({
   apiKey: process.env.CHATGROQ_API_KEY,
   model: "qwen/qwen3.8-27b",
-  temperature: 0.7,
+  temperature: 0,
   timeout: 60000,
 
 
@@ -30,177 +30,198 @@ const mistralmodel = new ChatMistralAI({
   timeout: 60000,
 })
 
-const sendemail = tool(
-  sendEmail,
-  {
-    name: "sendEmail",
-
-    description: `
-Send an email immediately whenever the user explicitly asks to send an email.
-
-The user's request is authorization to send the email. Never ask for confirmation before sending.
-
-The user can provide any combination of recipient, subject, content, topic, or purpose.
-
-Rules:
-1. If the user explicitly asks to send an email, call this tool immediately.
-2. If the user provides only the recipient and a topic/purpose, generate a suitable subject and email content yourself, then send it.
-3. If the user provides a recipient and subject but no body, generate the body yourself based on the subject, then send it.
-4. If the user provides recipient, subject, and body, use the provided information and send it.
-5. If the user provides a recipient and instructions about what to say, generate a suitable subject and complete email content yourself.
-6. Handle any type of email request: meetings, birthday wishes, job applications, follow-ups, leave requests, reminders, invitations, professional emails, personal emails, announcements, etc.
-7. Do not ask "Should I send it?", "Do you want me to send it?", or any other confirmation question.
-8. Do not merely draft the email when the user explicitly asks to send it. Actually call this tool.
-9. Only ask a clarification if the recipient email address is genuinely missing or ambiguous and cannot be determined.
-10. Generate both HTML and plain-text versions of the email when they are not provided by the user.
-
-Examples:
-
-User: "Send an email to rahul@example.com about tomorrow's meeting"
-Action: Generate subject and email body, then call this tool immediately.
-
-User: "Send email to rahul@example.com, subject is Meeting Tomorrow"
-Action: Generate the email body, then call this tool immediately.
-
-User: "Send an email to rahul@example.com saying the meeting is at 10 AM"
-Action: Generate a suitable subject and email body, then call this tool immediately.
-
-User: "Send birthday wishes to rahul@example.com"
-Action: Generate subject and birthday message, then call this tool immediately.
-
-User: "Send this email to rahul@example.com: The meeting has been moved to 3 PM"
-Action: Generate a suitable subject, preserve the intended message, generate HTML/plain text, then call this tool immediately.
-
-   IMPORTANT EMAIL FORMATTING RULES:
-
-- The html field must contain valid HTML.
-- Never put literal \n or \n\n characters/sequences in the HTML output.
-- Never return HTML insidehtml ... code fences.
-- Never wrap the entire HTML content in quotes.
-- Use <p>, <br>, <strong>, <h1>, etc. for formatting.
-- The  text field must contain normal plain text with real line breaks.
-- Do not use escaped newline sequences such as \n as visible content. `
-
-,
-
-    schema: z.object({
-      to: z.string()
-        .email()
-        .describe("The recipient's email address. Required to send the email."),
-
-      subject: z.string()
-        .describe("Email subject. Generate an appropriate subject from the user's request if the user did not provide one."),
-
-      html: z.string()
-        .describe(`
-Complete HTML email body.
-
-Generate REAL HTML, not escaped text.
-
-Use HTML tags such as:
-<p>...</p>
-<br>
-<strong>...</strong>
-<h2>...</h2>
-
-DO NOT output literal escape sequences such as \\n, \\n\\n, or \\r\\n inside the HTML.
-
-Do not wrap the HTML in quotation marks or markdown code fences.
-`),
-
-      text: z.string()
-        .describe(`
-Plain-text version of the email.
-
-Use actual line breaks, not the literal characters \\n or \\r\\n.
-Do not wrap the content in quotation marks.
-`)
-    })
-  }
-);
 const searchInternetTool = tool(
   searchinternet,
   {
     name: "searchInternet",
 
     description: `
-Search the internet to get accurate, current, recent, or externally verifiable information.
+Search the internet for current, recent, latest, or real-world information.
 
-IMPORTANT TOOL-USE RULE:
-If the user's question depends on information that may have changed over time, USE THIS TOOL before answering.
-
-You MUST use this tool for questions involving:
-- today's news
-- latest news
-- current events
-- current date
-- current time
-- today's information
-- latest updates
-- recent events
-- current government or political information
-- current Prime Minister, President, Chief Minister, ministers, or other current officials
-- current company CEOs or executives
-- current prices, stock prices, exchange rates, product prices, or availability
-- latest technology or software updates
-- latest versions of libraries, frameworks, APIs, or models
-- recent releases or announcements
-- current sports scores, matches, rankings, or schedules
-- current weather
-- current laws, policies, rules, or regulations
-- anything containing words such as "today", "now", "currently", "latest", "recent", "this week", "this month", "2026", or similar time-sensitive wording
-- any question where answering from model memory could produce outdated or incorrect information
+USE THIS TOOL whenever the user asks about information that may have changed or requires live web data.
 
 Examples:
+- today's news
+- latest news
+- current date or time
+- current Prime Minister or other officials
+- current company CEOs
+- latest software/library/API versions
+- current prices or exchange rates
+- current weather
+- current sports results
+- recent events or announcements
+- latest updates about a company, product, technology, or person
+- any question containing today, now, current, latest, recent, or similar time-sensitive wording
 
-User: "What is today's news?"
-→ MUST use searchInternet.
+If the answer could be outdated from your internal knowledge, use this tool first.
 
-User: "Who is the current Prime Minister of India?"
-→ MUST use searchInternet.
+Do NOT use this tool for stable general knowledge such as:
+"What is React?"
+"What is JWT?"
+"What is MongoDB?"
 
-User: "What is the current time in India?"
-→ MUST use searchInternet or another reliable current-time source.
+If the user explicitly asks to search the internet, ALWAYS use this tool.
 
-User: "What is the latest React version?"
-→ MUST use searchInternet.
-
-User: "What happened today in the stock market?"
-→ MUST use searchInternet.
-
-User: "Latest updates about OpenAI?"
-→ MUST use searchInternet.
-
-User: "Who won today's match?"
-→ MUST use searchInternet.
-
-User: "Explain what React is."
-→ Do NOT use searchInternet unless the user explicitly asks for an online search or the question requires current information.
-
-User: "What is JWT?"
-→ Do NOT use searchInternet because this is stable general knowledge.
-
-The word "current" should be interpreted as information that must reflect the real world at the time of the user's request.
-
-Do not answer a time-sensitive question from your training knowledge when reliable web information can be retrieved.
-
-After searching:
-- Use the search results to formulate the answer.
-- Prefer recent and reliable sources.
-- Do not invent facts that are not supported by the search results.
-- If search results are conflicting or insufficient, clearly state the uncertainty.
-- Do not claim that information is current unless the search results support it.
-
-If the user explicitly asks you to search the internet, ALWAYS use this tool regardless of whether the information is normally considered stable.
+After calling the tool, answer using the returned search results. Never invent information that was not found.
 `,
 
     schema: z.object({
       query: z.string().describe(
-        "A precise search query for retrieving the required information from the internet."
+        "The exact information to search for on the internet."
       )
     })
   }
 );
+
+n
+
+// const sendemail = tool(
+//   sendEmail,
+//   {
+//     name: "sendEmail",
+
+//     description: `
+// Send an email immediately whenever the user explicitly asks to send an email.
+
+// The user's request is authorization to send the email. Never ask for confirmation before sending.
+
+// The user can provide any combination of recipient, subject, content, topic, or purpose.
+
+// Rules:
+// 1. If the user explicitly asks to send an email, call this tool immediately.
+// 2. If the user provides only the recipient and a topic/purpose, generate a suitable subject and email content yourself, then send it.
+// 3. If the user provides a recipient and subject but no body, generate the body yourself based on the subject, then send it.
+// 4. If the user provides recipient, subject, and body, use the provided information and send it.
+// 5. If the user provides a recipient and instructions about what to say, generate a suitable subject and complete email content yourself.
+// 6. Handle any type of email request: meetings, birthday wishes, job applications, follow-ups, leave requests, reminders, invitations, professional emails, personal emails, announcements, etc.
+// 7. Do not ask "Should I send it?", "Do you want me to send it?", or any other confirmation question.
+// 8. Do not merely draft the email when the user explicitly asks to send it. Actually call this tool.
+// 9. Only ask a clarification if the recipient email address is genuinely missing or ambiguous and cannot be determined.
+// 10. Generate both HTML and plain-text versions of the email when they are not provided by the user.
+
+// Examples:
+
+// User: "Send an email to rahul@example.com about tomorrow's meeting"
+// Action: Generate subject and email body, then call this tool immediately.
+
+// User: "Send email to rahul@example.com, subject is Meeting Tomorrow"
+// Action: Generate the email body, then call this tool immediately.
+
+// User: "Send an email to rahul@example.com saying the meeting is at 10 AM"
+// Action: Generate a suitable subject and email body, then call this tool immediately.
+
+// User: "Send birthday wishes to rahul@example.com"
+// Action: Generate subject and birthday message, then call this tool immediately.
+
+// User: "Send this email to rahul@example.com: The meeting has been moved to 3 PM"
+// Action: Generate a suitable subject, preserve the intended message, generate HTML/plain text, then call this tool immediately.
+
+//    IMPORTANT EMAIL FORMATTING RULES:
+
+// - The html field must contain valid HTML.
+// - Never put literal \n or \n\n characters/sequences in the HTML output.
+// - Never return HTML insidehtml ... code fences.
+// - Never wrap the entire HTML content in quotes.
+// - Use <p>, <br>, <strong>, <h1>, etc. for formatting.
+// - The  text field must contain normal plain text with real line breaks.
+// - Do not use escaped newline sequences such as \n as visible content. `
+
+// ,
+
+//     schema: z.object({
+//       to: z.string()
+//         .email()
+//         .describe("The recipient's email address. Required to send the email."),
+
+//       subject: z.string()
+//         .describe("Email subject. Generate an appropriate subject from the user's request if the user did not provide one."),
+
+//       html: z.string()
+//         .describe(`
+// Complete HTML email body.
+
+// Generate REAL HTML, not escaped text.
+
+// Use HTML tags such as:
+// <p>...</p>
+// <br>
+// <strong>...</strong>
+// <h2>...</h2>
+
+// DO NOT output literal escape sequences such as \\n, \\n\\n, or \\r\\n inside the HTML.
+
+// Do not wrap the HTML in quotation marks or markdown code fences.
+// `),
+
+//       text: z.string()
+//         .describe(`
+// Plain-text version of the email.
+
+// Use actual line breaks, not the literal characters \\n or \\r\\n.
+// Do not wrap the content in quotation marks.
+// `)
+//     })
+//   }
+// );
+
+const sendemail = tool(
+  sendEmail,
+  {
+    name: "sendEmail",
+
+    description: `
+Send an email immediately when the user explicitly asks to send one.
+
+Rules:
+1. Never ask for confirmation before sending.
+2. If subject or body is missing, generate them from the user's request.
+3. Handle all types of emails such as professional, personal, meetings, birthdays, applications, reminders, invitations, etc.
+4. If the user provides the email content, preserve its intended meaning.
+5. Generate both HTML and plain-text versions when not provided.
+6. Only ask for clarification if the recipient email is missing or unclear.
+7. When the user asks to send an email, actually call this tool instead of only drafting it.
+
+Email formatting:
+- html must contain valid HTML.
+- Do not use literal \\n or \\n\\n inside html.
+- Do not use markdown code fences or wrap HTML in quotes.
+- Use HTML tags such as <p>, <br>, <strong>, and <h2>.
+- text must be normal plain text with actual line breaks.
+`,
+
+    schema: z.object({
+
+      to: z.string()
+        .email()
+        .describe(
+          "Recipient email address. Required."
+        ),
+
+      subject: z.string()
+        .describe(
+          "Email subject. Generate one if the user did not provide it."
+        ),
+
+      html: z.string()
+        .describe(`
+Valid HTML email body.
+Generate it yourself if the user does not provide HTML.
+Do not use literal \\n, \\n\\n, or \\r\\n.
+Do not use markdown code fences or quotes.
+Use HTML tags such as <p>, <br>, <strong>, and <h2>.
+`),
+
+      text: z.string()
+        .describe(`
+Plain-text email body.
+Generate it yourself if not provided.
+Use actual line breaks, not literal \\n or \\r\\n.
+`)
+    })
+  }
+);
+
 
 // ye mere wala hia 
 // function createSearchDocumentTool(chatId) {
@@ -287,7 +308,7 @@ function getAgentForChat(chatId) {
   const key = chatId?.toString() || "no-chat";
   if (agentCache.has(key)) return agentCache.get(key);
   const searchDocument = createSearchDocumentTool(chatId);
-  const tools = [searchInternetTool, sendemail, searchDocument];
+  const tools = [ searchinternet, sendEmail, searchDocument];
 
   console.log("🛠️ AGENT TOOLS:", tools.map(t => t.name));
 
