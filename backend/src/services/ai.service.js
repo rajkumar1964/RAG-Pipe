@@ -340,7 +340,7 @@ function getAgentForChat(chatId) {
     tools,
     systemPrompt: `You are a helpful assistant with 3 tools.
 
-1. searchDocument
+1. ${searchDocument.name}
    Use for ANY question that could be answered from the user's uploaded
    document/PDF/resume (email, phone, skills, experience, projects,
    education, summary, "what is written", "who is the candidate").
