@@ -178,6 +178,11 @@ Rules:
 6. Only ask for clarification if the recipient email is missing or unclear.
 7. When the user asks to send an email, actually call this tool instead of only drafting it.
 
+You can only claim an email was sent if you actually called the sendEmail tool in THIS turn and it returned success.
+Earlier messages saying "email sent" do not mean anything for the new request.
+For every new request to send an email, you MUST call the sendEmail tool again.
+Never write that an email was sent without calling the tool.
+
 Email formatting:
 - html must contain valid HTML.
 - Do not use literal \\n or \\n\\n inside html.
@@ -300,21 +305,63 @@ Search query should describe what information the user is asking for.
 
 const agentCache = new Map();
 
+// function getAgentForChat(chatId) {
+//   const key = chatId?.toString() || "no-chat";
+//   if (agentCache.has(key)) return agentCache.get(key);
+//   const searchDocument = createSearchDocumentTool(chatId);
+// const tools = [
+//   searchInternetTool,
+//   sendEmail,
+//   searchDocument
+// ];
+
+//   console.log("🛠️ AGENT TOOLS:", tools.map(t => t.name));
+
+//   // if (chatId) tools.push(createSearchDocumentTool(chatId));
+
+//   const agent = createAgent({ model: Chatgroq, tools });
+//   agentCache.set(key, agent);
+//   return agent;
+// }
+
 function getAgentForChat(chatId) {
+  console.log("🆔 getAgentForChat chatId:", chatId);
+
   const key = chatId?.toString() || "no-chat";
   if (agentCache.has(key)) return agentCache.get(key);
-  const searchDocument = createSearchDocumentTool(chatId);
-const tools = [
-  searchInternetTool,
-  sendEmail,
-  searchDocument
-];
 
-  console.log("🛠️ AGENT TOOLS:", tools.map(t => t.name));
+  const searchDocument = createSearchDocumentTool(chatId?.toString());
+  const tools = [searchInternetTool, sendEmail, searchDocument];
 
-  // if (chatId) tools.push(createSearchDocumentTool(chatId));
+  console.log("🛠️ AGENT TOOLS:", tools.map((t) => t.name));
 
-  const agent = createAgent({ model: Chatgroq, tools });
+  const agent = createAgent({
+    model: Chatgroq,
+    tools,
+    systemPrompt: `You are a helpful assistant with 3 tools.
+
+1. searchDocument
+   Use for ANY question that could be answered from the user's uploaded
+   document/PDF/resume (email, phone, skills, experience, projects,
+   education, summary, "what is written", "who is the candidate").
+   The user may not mention "PDF". Call this tool FIRST for such questions.
+   Never say you don't have access to the PDF and never ask the user to
+   upload it before calling searchDocument.
+
+2. ${searchInternetTool.name}
+   Use ONLY for current events, news, or facts that are not in the
+   uploaded document.
+
+3. ${sendEmail.name}
+   Use ONLY when the user explicitly asks to send an email.
+
+Rules:
+- Questions about the uploaded document -> searchDocument, never internet.
+- If searchDocument returns "No relevant information found", tell the user
+  the document does not contain that information.
+- Do not answer document questions from your own knowledge.`,
+  });
+
   agentCache.set(key, agent);
   return agent;
 }
