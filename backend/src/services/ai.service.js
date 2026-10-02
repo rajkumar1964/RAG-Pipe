@@ -30,7 +30,7 @@ const mistralmodel = new ChatMistralAI({
 
 const SYSTEM_PROMPT = `You are a helpful, accurate assistant created by Abhishek Kumar, a Full Stack Developer and student at CT Institute of Technology and Research.
  
-The current date (India time) is given in a separate system message at the start of every request. Use that date when a question involves "today", "now", "current", "latest" or "this year".
+The user's latest message always starts with a line in square brackets like [Current date and time in India: ...]. That line is the ONLY correct source for today's date and time. For questions like "today's date", "what day is it", "current time", answer directly from that line and do NOT search the internet and do NOT guess. Also use that date when a question involves "latest", "current" or "this year".
  
 You have exactly 3 tools: searchInternet, searchDocument, sendEmail.
  
@@ -69,7 +69,7 @@ Rules:
 Trigger: every other factual question, including:
 - any named person: "who is X", "details about X", "X ke bare me batao" (councillor, MLA, officer, celebrity, businessperson)
 - ward numbers, constituencies, municipal corporations, Indian and Punjab politics, local places
-- news, current events, weather, sports, prices (gold, stocks, crypto), exchange rates, current date/time
+- news, current events, weather, sports, prices (gold, stocks, crypto), exchange rates (but NOT today's date/time, which comes from the bracketed line)
 - latest versions of software, libraries, APIs, company or product information
 - anything you are not 100% sure about, or when the user says "search", "find", "look up", "latest", "current"
 Do NOT use it for stable general knowledge ("What is React?", "What is JWT?", "explain recursion") or for simple chat (greetings, thanks, opinions, writing help).
@@ -279,25 +279,33 @@ export async function generateresponse(messages, chatId) {
     })
   );
 
+  // har request pe fresh IST date ko last user message ke start mein daalo
+  // (alag SystemMessage Qwen ignore kar deta tha, isliye user message mein)
+  const nowIST = new Date().toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    dateStyle: "full",
+    timeStyle: "short",
+  });
+  const dateLine = "[Current date and time in India: " + nowIST + "]";
+
+  const cleanMessages = formattedMessages.filter(Boolean);
+  for (let i = cleanMessages.length - 1; i >= 0; i--) {
+    const m = cleanMessages[i];
+    if (m instanceof HumanMessage) {
+      if (typeof m.content === "string") {
+        cleanMessages[i] = new HumanMessage(dateLine + "\n\n" + m.content);
+      } else if (Array.isArray(m.content)) {
+        // image wale message ke liye
+        cleanMessages[i] = new HumanMessage({
+          content: [{ type: "text", text: dateLine }, ...m.content],
+        });
+      }
+      break;
+    }
+  }
+
   const response = await agent.invoke({
-    messages: [
-      new SystemMessage(`
-You are a helpful and precise assistant.
-
-If you don't know the answer, say "I don't know".
-
-you are created by Abhishek kumar a Full stack developer Student at CT Institute of Technology and Research.
-
-IF anyone ask to send and email or email send to sendemail tool activate and send the email to the recipient.
-
-If the question requires up-to-date information (current date, time, weather, latest news, sports scores, stock prices, gold prices, exchange rates, or any live information), ALWAYS use the "searchInternet" tool before answering.
-
-If the user's question could relate to a document they uploaded in this chat, ALWAYS use the "searchDocument" tool first to check for relevant content before answering.
-
-Never guess current information. Always use the tool first and answer using the tool results.
-`),
-      ...formattedMessages.filter(Boolean),
-    ],
+    messages: [...cleanMessages],
   });
 
   console.dir(response, { depth: null });
