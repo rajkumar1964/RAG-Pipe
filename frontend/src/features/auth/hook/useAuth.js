@@ -15,7 +15,7 @@ export function useAuth() {
             toast.success(data.message || "Email Send Succesfully")
             return true
         } catch (error) {
-            const message = error.response?.data?.message || "Registration failed"
+            const message = error.response?.data?.errors || "Registration failed"
             dispatch(setError(message))
             toast.error(message)
             return false

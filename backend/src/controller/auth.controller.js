@@ -4,23 +4,91 @@ import jwt from "jsonwebtoken"
 import { sendEmail } from "../services/mail.service.js";
 
 
+// export async function registercontroller(req, res) {
+//     try {
+//         const { email.toLowerCase().trim(), username, password } = req.body
+
+//         const isuseralreadyexists = await userModel.findOne({
+//             $or: [{ email }, { username }]
+//         })
+
+//         if (isuseralreadyexists) {
+//             return res.status(400).json({
+//                 message: isuseralreadyexists.email === email ? "email already exists" : "username already exists",
+//                 success: false,
+//                 err: "User Already Exists"
+//             })
+//         }
+
+//         const user = await userModel.create({ username, email, password })
+
+//         const emailverificationtoken = jwt.sign(
+//             { email: user.email },
+//             process.env.JWT_SECRET,
+//             { expiresIn: "1h" }
+//         )
+
+//         await sendEmail({
+//             to: user.email,
+//             subject: "welcome to perplexity",
+//             html: `<p>${user.username}</p>
+//             <p>Thank you for registering at <strong>Perplexity</strong>. We are excited to have you on board!</p>
+//             <p>Please click on the link below to verify your email address:</p>
+//             <a href="https://rag-pipe-86ej.onrender.com/api/auth/verify?token=${emailverificationtoken}"> Verify</a>
+//             <p>If you did not create an account, no further action is required.</p>
+//             <p>Best regards,<br>Perplexity Team</p>`
+//         })
+
+//         return res.status(200).json({
+//             message: "Account created! Please check your email to verify",
+//         })
+//     } catch (err) {
+//         console.error("registercontroller error:", err)
+       
+//         return res.status(500).json({
+//             message: "Registration failed",
+//             success: false,
+//             err: err.message
+//         })
+//     }
+// }
+
+
 export async function registercontroller(req, res) {
     try {
-        const { email, username, password } = req.body
+        const { username, password } = req.body
+        const email = req.body.email.toLowerCase().trim()
 
         const isuseralreadyexists = await userModel.findOne({
             $or: [{ email }, { username }]
         })
 
-        if (isuseralreadyexists) {
-            return res.status(400).json({
-                message: isuseralreadyexists.email === email ? "email already exists" : "username already exists",
-                success: false,
-                err: "User Already Exists"
-            })
-        }
+        let user
 
-        const user = await userModel.create({ username, email, password })
+        if (isuseralreadyexists) {
+            if (isuseralreadyexists.verified) {
+                return res.status(400).json({
+                    message: isuseralreadyexists.email === email ? "email already exists" : "username already exists",
+                    success: false,
+                    err: "User Already Exists"
+                })
+            }
+
+            if (isuseralreadyexists.email !== email) {
+                return res.status(400).json({
+                    message: "username already exists",
+                    success: false,
+                    err: "User Already Exists"
+                })
+            }
+
+            isuseralreadyexists.username = username
+            isuseralreadyexists.password = password
+            await isuseralreadyexists.save()
+            user = isuseralreadyexists
+        } else {
+            user = await userModel.create({ username, email, password })
+        }
 
         const emailverificationtoken = jwt.sign(
             { email: user.email },
@@ -28,22 +96,32 @@ export async function registercontroller(req, res) {
             { expiresIn: "1h" }
         )
 
-        await sendEmail({
-            to: user.email,
-            subject: "welcome to perplexity",
-            html: `<p>${user.username}</p>
-            <p>Thank you for registering at <strong>Perplexity</strong>. We are excited to have you on board!</p>
-            <p>Please click on the link below to verify your email address:</p>
-            <a href="https://rag-pipe-86ej.onrender.com/api/auth/verify?token=${emailverificationtoken}"> Verify</a>
-            <p>If you did not create an account, no further action is required.</p>
-            <p>Best regards,<br>Perplexity Team</p>`
-        })
+        try {
+            await sendEmail({
+                to: user.email,
+                subject: "welcome to perplexity",
+                html: `<p>${user.username}</p>
+                <p>Thank you for registering at <strong>Perplexity</strong>. We are excited to have you on board!</p>
+                <p>Please click on the link below to verify your email address:</p>
+                <a href="https://rag-pipe-86ej.onrender.com/api/auth/verify?token=${emailverificationtoken}"> Verify</a>
+                <p>If you did not create an account, no further action is required.</p>
+                <p>Best regards,<br>Perplexity Team</p>`
+            })
+        } catch (emailerr) {
+            console.error("email failed:", emailerr)
+            return res.status(500).json({
+                message: "Could not send verification email. Please try again.",
+                success: false,
+                err: emailerr.message
+            })
+        }
 
         return res.status(200).json({
             message: "Account created! Please check your email to verify",
         })
     } catch (err) {
         console.error("registercontroller error:", err)
+
         return res.status(500).json({
             message: "Registration failed",
             success: false,
