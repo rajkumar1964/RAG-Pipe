@@ -237,7 +237,7 @@ function getAgentForChat(chatId) {
   console.log(" AGENT TOOLS:", tools.map((t) => t.name));
 
   const agent = createAgent({
-    model: Chatgroq,
+    model:geminimodel,
     tools,
     systemPrompt: SYSTEM_PROMPT,
   });
